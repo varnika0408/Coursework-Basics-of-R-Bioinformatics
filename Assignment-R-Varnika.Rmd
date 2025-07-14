@@ -1,0 +1,168 @@
+---
+output:
+  html_document: default
+  pdf_document: default
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+
+
+```{r}
+#Assessment 1
+# 1. Load the file Sales.tsv with the first column as the rownames (2%)
+Data_sales <- read.delim("C:/Users/dell/Desktop/Data/Assessment/Sales.tsv", sep = "\t", row.names = 1)
+Data_sales
+```
+```{r}
+#2.Calculate the mean of each row (3%)
+row_mean <- rowMeans(Data_sales)
+row_mean
+```
+
+```{r}
+#1.List the top 5 years with the highest mean sales
+top_five_years <- sort(row_mean, decreasing = TRUE)
+head(top_five_years, 5)
+```
+
+```{r}
+# 3.Calculate the median of each column (5%)
+median_of_column <- apply(Data_sales,2,median)
+#1.List the top 5 months with the highest median sales
+five_years <- sort(median_of_column, decreasing = TRUE)
+head(five_years,5)
+```
+```{r}
+require("ggpubr")
+#4.Generate a scatter plot of the sales for the 2 months with the highest median values (5%)
+ggplot(Data_sales, aes(x = Mar,y = Jun)) + geom_point() + labs(title = "Scatter Plot of March vs. June Sales",x = "March Sales", y = "June Sales")
+```
+
+```{r}
+#1. Add a linear regression line and correlation statistics to this plot
+ggplot(Data_sales, aes(x = Mar,y = Jun)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", color = "blue") +
+  stat_cor()
+```
+
+```{r}
+#5.Convert the rownames into a column and turn the data into long format so that the data can be processed using ggplot2 (5%)
+require(tidyverse)
+long_sales_data <- Data_sales %>%
+  rownames_to_column("Years") %>%
+  pivot_longer(cols = c(Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec))
+long_sales_data
+```
+
+```{r}
+#6.Using the long form dataframe, generate a Boxplot of the sales values for the 2 years with the highest mean sales (10%)
+two_years = head(sort(row_mean, decreasing = TRUE),n = 2)
+two_years_data = subset(long_sales_data, Years %in% names(two_years))
+two_years_data
+```
+```{r}
+#1.Determine whether to use a parametric or non-parametric test for these data.
+shapiro.test(two_years_data$value)
+```
+```{r}
+#2.Include the correct statistics on the plot.
+ggplot(two_years_data, aes(x = Years, y = value,fill = Years)) +
+  geom_boxplot() + stat_compare_means(method = "t.test") + labs(title = "Boxplot of Sales for Top 2 Years ",
+       x = "Year", y = "Sales")
+```
+```{r}
+#Assessment 2
+#Use the three files (Counts.tsv, SampleInfo.tsv, Genes.tsv) provided to generate an object of the  expressionSet class from the Biobase package (use the first column of these files as the rownames) (5%)
+require(Biobase)
+CountsFile <- read.delim("C:/Users/dell/Desktop/Data/Assessment/Counts.tsv", row.names = 1, sep = "\t")
+Sampleinfo <- read.delim("C:/Users/dell/Desktop/Data/Assessment/SampleData.tsv", row.names = 1, sep = "\t")
+GenesFile <- read.delim("C:/Users/dell/Desktop/Data/Assessment/Genes.tsv", row.names = 1, sep = "\t")
+Sample_Annot <- AnnotatedDataFrame(Sampleinfo)
+Genes_Annot <- AnnotatedDataFrame(GenesFile)
+Expression <- ExpressionSet(assayData = as.matrix(CountsFile),
+                                phenoData = Sample_Annot,
+                                featureData = Genes_Annot)
+Expression
+```
+```{r}
+#2.Print out the mean expression for each sample (3%)
+Mean_Expression <- colMeans(exprs(Expression))
+Mean_Expression
+```
+```{r}
+#3. Find the gene with the highest median expression (5%)
+Median_Gene <- apply(exprs(Expression),1,median)
+highest_median <- head(sort(Median_Gene, decreasing = TRUE), n = 1)
+highest_median
+```
+```{r}
+#4. Find the gene with the lowest standard deviation (5%)
+Gene_std <- apply(exprs(Expression),1,sd)
+head(sort(Gene_std,decreasing = FALSE), n = 1)
+```
+```{r}
+#5.Determine how many samples were in each batch (2%)
+batch_count <- table(Sampleinfo$Batch)
+batch_count
+```
+
+```{r}
+#6. Plot a boxplot of the expression of the top 10 genes ranked by standard deviation (hint: base R or ggplot2 is acceptable) (10%)
+top_10_Genes = names(sort(Gene_std, decreasing = TRUE))[1:10]
+New_Count <- exprs(Expression)[top_10_Genes, ]
+top_10_long <- as.data.frame(New_Count) %>%
+  rownames_to_column("Gene") %>%
+  pivot_longer(cols = -Gene,
+               names_to = "Sample",
+               values_to = "Expression")
+ggplot(top_10_long, aes(x = Gene, y = Expression)) + geom_boxplot(color = "blue") + labs(title = "Expression for Top 10 Genes by Standard Deviation",
+       x = "Gene", y = "Expression")
+
+```
+```{r}
+# Assessment 3 40%
+#Write functions that can do the following:
+#1.	Returns a data frame containing the mean, standard deviation and median of each column in a dataframe (e.g. mtcars, or the file Sales.tsv). (10%)
+New_Function <- function(columns){
+  column_stats <- data.frame(colMeans(columns),
+  apply(columns,2,sd),
+  apply(columns,2,median))
+  colnames(column_stats) = c("Means","Standard Deviation","Median")
+  return(column_stats)
+}
+New_Function(Data_sales)
+
+```
+
+```{r}
+#2.	Take a string containing a DNA sequence, convert this to a vector, which each entry being one base. (Hint: strsplit in conjuction with unlist). (15%)
+dna_sequence <- "TTGGTCATCCTAGACACGCGCCCTACCTGTCAAAATCTAAAATTCATCATACCCTGCGGACGGTGCTTCTGTGCCGAGGCGCAGGCCGATATGTTTCTAC"
+dnavector <- unlist(strsplit(dna_sequence, split = ""))
+dnavector
+```
+```{r}
+# 1. Calculate the length of the sequences, the amount of each of the four nucleotides, A, T, G and C. Return these as a vector with each item named (i.e. length, A, T, G, C)
+length_of_seq <- length(dnavector)
+Nucleotide_Counts <- table(strsplit(dna_sequence,""))
+  Nucleotide_Counts <- c(Total = nchar(dna_sequence), Nucleotide_Counts)
+  Nucleotide_Counts
+```
+```{r}
+#4.Write a function that takes a DNA sequence and substitutes one nucleotide specified by an argument (default value “A”) for another nucleotide specified by an argument (default value “T”). This function should return a named list with both the original and the new string of nucleotides. (15%)
+NewFunc <-function(dna_sequence, to_replace = "A", replacement = "T") {
+  dnavector[dnavector == to_replace] <- replacement
+  new_sequence <- paste(dnavector, collapse = "")
+  Final <- list(Previous_Sequence =dna_sequence , Modified_Sequence = new_sequence)
+  Final
+}
+NewFunc(dna_sequence)
+```
